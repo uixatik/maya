@@ -1,0 +1,8 @@
+target/
+**/*.rs.bk
+*.maya.part
+*.maya.state
+.DS_Store
+dist/
+test_downloads/
+node_modules/

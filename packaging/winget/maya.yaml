@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
+PackageIdentifier: Maya.MayaDownloader
+PackageVersion: 0.0.1
+PackageName: Maya Downloader
+Publisher: Maya Downloader Contributors
+PublisherUrl: https://github.com/uixatik/maya
+PublisherSupportUrl: https://github.com/uixatik/maya/issues
+Author: Maya Contributors
+License: MIT
+LicenseUrl: https://github.com/uixatik/maya/blob/main/LICENSE
+ShortDescription: Fast, resilient multi-protocol CLI, daemon, and TUI downloader written in Rust.
+Description: |
+  Maya is a high-performance, resilient multi-protocol download manager supporting
+  segmented multi-connection HTTP/HTTPS, HLS and MPEG-DASH streaming media extraction
+  with yt-dlp and ffmpeg, BitTorrent/magnet transfers, an interactive Ratatui TUI,
+  a background daemon service with persistent SQLite queue, and browser extension
+  integration via Native Messaging Host.
+Moniker: maya
+Tags:
+  - download-manager
+  - downloader
+  - torrent
+  - streaming
+  - hls
+  - dash
+  - tui
+  - cli
+Commands:
+  - maya
+  - mayad
+  - maya-nmh
+ReleaseDate: 2026-11-13
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/uixatik/maya/releases/download/v0.0.1/maya-v0.0.1-windows-x86_64.zip
+    InstallerSha256: 6ee92b5aea2eaa6675deb14f23e5a5029592d53f08f61e73ad57fe0164bb5b13
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: maya.exe
+        PortableCommandAlias: maya
+      - RelativeFilePath: mayad.exe
+        PortableCommandAlias: mayad
+      - RelativeFilePath: maya-nmh.exe
+        PortableCommandAlias: maya-nmh
+ManifestType: singleton
+ManifestVersion: 1.6.0

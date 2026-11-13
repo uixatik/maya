@@ -1,0 +1,52 @@
+# Maintainer: Maya Contributors <maintainers@maya-downloader.local>
+pkgname=maya-downloader
+pkgver=0.0.1
+pkgrel=1
+pkgdesc="Fast, resilient multi-protocol CLI, daemon, and TUI downloader written in Rust"
+arch=('x86_64' 'aarch64')
+url="https://github.com/uixatik/maya"
+license=('MIT' 'Apache-2.0')
+depends=('gcc-libs' 'glibc')
+makedepends=('cargo' 'git')
+optdepends=(
+    'yt-dlp: Media stream extraction for YouTube, Vimeo, and streaming platforms'
+    'ffmpeg: Audio/video stream muxing and format conversion'
+)
+provides=('maya' 'mayad' 'maya-nmh')
+conflicts=('maya-bin')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/uixatik/maya/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$srcdir/$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$srcdir/$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release -p maya-cli -p maya-daemon -p maya-nmh
+}
+
+check() {
+    cd "$srcdir/$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --frozen --workspace
+}
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+    install -Dm755 target/release/maya "$pkgdir/usr/bin/maya"
+    install -Dm755 target/release/mayad "$pkgdir/usr/bin/mayad"
+    install -Dm755 target/release/maya-nmh "$pkgdir/usr/bin/maya-nmh"
+
+    # Install browser extension files
+    install -dm755 "$pkgdir/usr/share/maya/extensions/browser-capture"
+    cp -r extensions/browser-capture/* "$pkgdir/usr/share/maya/extensions/browser-capture/"
+
+    # Documentation and license
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -1,0 +1,3 @@
+# Batch download test
+https://raw.githubusercontent.com/git/git/master/README.md
+https://raw.githubusercontent.com/rust-lang/rust/master/Cargo.toml

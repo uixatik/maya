@@ -1,0 +1,31 @@
+{
+    "version": "0.0.1",
+    "description": "Fast, resilient multi-protocol CLI, daemon, and TUI downloader written in Rust",
+    "homepage": "https://github.com/uixatik/maya",
+    "license": "MIT",
+    "notes": "Run 'maya-nmh --install-manifest' to configure native messaging with Chrome, Edge, and Firefox.",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/uixatik/maya/releases/download/v0.0.1/maya-v0.0.1-windows-x86_64.zip",
+            "hash": "6ee92b5aea2eaa6675deb14f23e5a5029592d53f08f61e73ad57fe0164bb5b13"
+        }
+    },
+    "bin": [
+        "maya.exe",
+        "mayad.exe",
+        "maya-nmh.exe"
+    ],
+    "post_install": [
+        "& \"$dir\\maya-nmh.exe\" --install-manifest"
+    ],
+    "checkver": {
+        "github": "https://github.com/uixatik/maya"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/uixatik/maya/releases/download/v$version/maya-v$version-windows-x86_64.zip"
+            }
+        }
+    }
+}
