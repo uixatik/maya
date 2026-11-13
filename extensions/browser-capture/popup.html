@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maya Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1 class="title">Maya</h1>
+          <span class="subtitle">Download Manager</span>
+        </div>
+      </div>
+      <div id="statusBadge" class="status-badge checking">
+        <span class="status-dot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Quick Add Section -->
+    <section class="card quick-add">
+      <div class="card-title">Quick Download</div>
+      <div class="input-group">
+        <input type="text" id="urlInput" placeholder="Enter download URL or paste link..." autocomplete="off" spellcheck="false" />
+        <button id="pasteBtn" class="btn btn-secondary icon-btn" title="Paste from clipboard">📋</button>
+      </div>
+
+      <div class="options-row">
+        <input type="text" id="filenameInput" placeholder="Filename (optional)" spellcheck="false" />
+        <select id="connectionsSelect" title="Segment connections">
+          <option value="4">4 conns</option>
+          <option value="8" selected>8 conns</option>
+          <option value="16">16 conns</option>
+          <option value="32">32 conns</option>
+        </select>
+      </div>
+
+      <button id="downloadBtn" class="btn btn-primary w-100">
+        <span>⚡ Start Download</span>
+      </button>
+      <div id="feedbackMessage" class="feedback-msg"></div>
+    </section>
+
+    <!-- Detected Media Streams on Active Tab -->
+    <section id="mediaSection" class="card media-card" style="display: none;">
+      <div class="card-header-row">
+        <div class="card-title">Detected Media / Stream</div>
+        <span id="mediaCountBadge" class="badge">0</span>
+      </div>
+      <div id="mediaList" class="media-list"></div>
+    </section>
+
+    <!-- Toggles and Preferences -->
+    <section class="card settings-card">
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Intercept Browser Downloads</span>
+          <span class="setting-desc">Auto-capture files with Maya's high-speed engine</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="interceptToggle" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Capture Media Streams</span>
+          <span class="setting-desc">Sniff YouTube & HLS/DASH media links</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="mediaToggle" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Footer / Quick Links -->
+    <footer class="footer">
+      <div class="footer-links">
+        <a href="#" id="openWebUi" class="link-btn">🌐 Open Web UI</a>
+        <a href="#" id="openDocs" class="link-btn">📖 TUI: <code>maya tui</code></a>
+      </div>
+      <div class="version-tag">Maya v0.0.1 • Native Host v0.0.1</div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
