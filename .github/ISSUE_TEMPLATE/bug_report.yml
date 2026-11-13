@@ -1,0 +1,60 @@
+name: 🐛 Bug Report
+description: Report an issue or unexpected behavior in Maya Downloader
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please check if a similar issue already exists before submitting.
+  - type: input
+    id: version
+    attributes:
+      label: Maya Version
+      description: What version of Maya are you using? (run `maya --version`)
+      placeholder: e.g. 0.0.1
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 11 (x86_64)
+        - Windows 10 (x86_64)
+        - Linux (x86_64)
+        - macOS (Apple Silicon / aarch64)
+        - macOS (Intel / x86_64)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: A clear and concise description of what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Run `maya get <url>`
+        2. Wait for segment download
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal or Log Output
+      description: Please copy and paste any relevant terminal output or log snippets.
+      render: shell
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `maya doctor`
+      description: Run `maya doctor` and paste the output here.
+      render: text

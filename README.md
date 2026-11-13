@@ -1,6 +1,43 @@
-# Maya Downloader (`v0.0.1` / `v0.0.01`)
+<div align="center">
 
-Fast, resilient, security-first multi-protocol CLI, daemon, and TUI downloader written in Rust.
+# ⚡ Maya Downloader
+
+**Fast, resilient, multi-protocol CLI, TUI & GUI download manager written in Rust.**
+
+[![GitHub Release](https://img.shields.io/github/v/release/uixatik/maya?color=2563eb&style=flat-square)](https://github.com/uixatik/maya/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/uixatik/maya/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/uixatik/maya/actions/workflows/ci.yml)
+[![Rust: 1.75+](https://img.shields.io/badge/Rust-1.75%2B-orange.svg?style=flat-square)](https://www.rust-lang.org)
+[![Platform: Windows | Linux | macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](#installation)
+
+[Downloads](https://github.com/uixatik/maya/releases/latest) • [Installation](#installation) • [Architecture](#architecture) • [CLI & TUI](#cli--tui-usage) • [Desktop GUI](#desktop-gui) • [Contributing](CONTRIBUTING.md) • [Security](SECURITY.md)
+
+</div>
+
+---
+
+## Overview
+
+**Maya** is a modern, high-throughput, memory-safe download accelerator designed to replace legacy tools like Internet Download Manager (IDM) and `aria2`. Built entirely in Rust with an asynchronous Tokio runtime, Maya provides multi-connection segmented downloads, adaptive in-half work stealing, crash-safe state journaling, streaming video stream extraction, and browser capture extensions.
+
+### Feature Comparison
+
+| Feature | Maya | aria2 | IDM | curl / wget |
+| :--- | :---: | :---: | :---: | :---: |
+| **Language & Safety** | **Rust (Memory-Safe)** | C++ | C++ | C |
+| **Segmented Range Downloads** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: |
+| **Adaptive Work Stealing** | :white_check_mark: | :x: | :white_check_mark: | :x: |
+| **Zero-Merge Sparse Storage** | :white_check_mark: | :white_check_mark: | :x: *(Reassembles on finish)* | :x: |
+| **Interactive Terminal TUI** | :white_check_mark: *(Ratatui)* | :x: | :x: | :x: |
+| **Native Desktop GUI** | :white_check_mark: *(Tauri v2)* | :x: *(Third-party web UI)* | :white_check_mark: *(Legacy Win32)* | :x: |
+| **Browser Extension (MV3)** | :white_check_mark: *(Chrome/Edge/Firefox)* | :x: | :white_check_mark: | :x: |
+| **BitTorrent & Magnets** | :white_check_mark: *(Pure-Rust engine)* | :white_check_mark: | :x: | :x: |
+| **Streaming HLS / DASH / yt-dlp**| :white_check_mark: | :x: | :x: | :x: |
+| **SSRF Defense & IP Pinning** | :white_check_mark: *(RFC 1918 / Loopback blocks)* | :x: | :x: | :x: |
+| **Background Daemon & Queue** | :white_check_mark: *(`mayad` SQLite)* | :white_check_mark: *(XML-RPC)* | :white_check_mark: | :x: |
+| **Open Source License** | **MIT License** | GPLv2 | Proprietary / Paid | MIT / GPL |
+
+---
 
 ## Highlights & Capabilities
 
@@ -22,7 +59,46 @@ Fast, resilient, security-first multi-protocol CLI, daemon, and TUI downloader w
 
 ## Architecture
 
-Maya is organized as a Cargo workspace of focused, modular crates:
+Maya is organized as a Cargo workspace with strict layer isolation:
+
+```mermaid
+flowchart TD
+    subgraph Clients["User Interfaces & Extensions"]
+        CLI["maya (CLI / TUI)"]
+        GUI["Maya GUI (Tauri v2)"]
+        EXT["Browser Extension (MV3)"]
+    end
+
+    subgraph IPC["Communication Layer"]
+        NMH["maya-nmh (Native Messaging Host)"]
+        PIPE["Named Pipes / Unix Sockets (JSON-RPC)"]
+    end
+
+    subgraph Service["Backend & Daemon"]
+        DAEMON["mayad (Background Daemon)"]
+        SQLITE[("SQLite Job Store")]
+    end
+
+    subgraph Core["Engine & Protocols"]
+        ENGINE["DownloadEngine (Work Stealer)"]
+        SCHED["SegmentScheduler"]
+        LIMITER["TokenBucketLimiter"]
+        PROTO["Protocols (HTTP / HLS / DASH / Torrent / yt-dlp)"]
+        STORAGE["SparseDiskWriter & Journal"]
+    end
+
+    CLI --> PIPE
+    GUI --> PIPE
+    EXT --> NMH --> PIPE
+    PIPE --> DAEMON
+    DAEMON --> SQLITE
+    DAEMON --> ENGINE
+    CLI -. Direct Mode .-> ENGINE
+    ENGINE --> SCHED
+    ENGINE --> LIMITER
+    ENGINE --> PROTO
+    ENGINE --> STORAGE
+```
 
 | Crate | Responsibility |
 | --- | --- |
@@ -33,22 +109,20 @@ Maya is organized as a Cargo workspace of focused, modular crates:
 | `crates/maya-daemon` | `mayad` daemon service, SQLite queue manager (`~/.maya/queue.db`), and background download worker pool. |
 | `crates/maya-cli` | `maya` command-line binary (`get`, `batch`, `torrent`, `tui`, `daemon`, `queue`, `doctor`, `version`). |
 | `crates/maya-nmh` | Browser Native Messaging Host (`maya-nmh`) supporting Chrome, Edge, Brave, and Firefox. |
-
----
-
-## Security Protections
-
-- **Pure-Rust TLS**: Powered exclusively by `rustls` — no dynamic OpenSSL or external C SSL dependencies.
-- **SSRF & DNS Rebinding Defense**: Hostnames resolved via `tokio::net::lookup_host`. Automatically blocks loopback (`127.0.0.0/8`), private RFC 1918 networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), CGNAT (`100.64.0.0/10`), link-local / IMDS (`169.254.0.0/16`), unspecified, multicast, IPv6 ULA (`fc00::/7`), IPv6 link-local (`fe80::/10`), and IPv4-mapped IPv6 (`::ffff:...`) unless `--allow-private-ips` is specified. IP addresses are pinned per redirect hop.
-- **Cross-Origin Credential Stripping**: Automatically removes `Authorization`, `Cookie`, and `Proxy-Authorization` headers when HTTP redirects cross origins.
-- **Path Traversal & Device Name Sanitization**: Filenames derived from URLs or RFC 5987 / RFC 6266 `Content-Disposition` headers are sanitized to block directory traversal, control codes, and Windows reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`). Target paths are guaranteed to reside within the destination directory.
-- **Strict HTTPS Option**: `--strict-https` rejects plaintext HTTP sources and redirects.
+| `apps/maya-gui` | Tauri v2 desktop GUI with reactive TypeScript dashboard. |
+| `extensions/browser-capture` | Manifest V3 browser extension for Chrome, Edge, and Firefox. |
 
 ---
 
 ## Installation
 
-### 1. One-Liner Installers
+### 1. Standalone Windows GUI Installer
+Download the latest Windows Installer from [GitHub Releases](https://github.com/uixatik/maya/releases/latest):
+- **[Maya_0.0.1_x64-setup.exe](https://github.com/uixatik/maya/releases/download/v0.0.1/Maya_0.0.1_x64-setup.exe)** (~1.92 MiB, Per-user install into `%LOCALAPPDATA%`, no UAC admin prompt required).
+
+---
+
+### 2. One-Liner Terminal Installers
 
 #### Windows (PowerShell)
 Installs `maya.exe`, `mayad.exe`, and `maya-nmh.exe` into `%LOCALAPPDATA%\Programs\Maya\bin`, adds the folder to your User `PATH`, and registers native messaging manifests for Chrome, Edge, and Firefox:
@@ -57,9 +131,9 @@ Installs `maya.exe`, `mayad.exe`, and `maya-nmh.exe` into `%LOCALAPPDATA%\Progra
 irm https://raw.githubusercontent.com/uixatik/maya/main/install.ps1 | iex
 ```
 
-Or run locally from repository / release directory:
-```powershell
-.\install.ps1
+#### Windows (CMD / Batch)
+```cmd
+curl -fsSL https://raw.githubusercontent.com/uixatik/maya/main/install.cmd -o install.cmd && install.cmd
 ```
 
 #### Linux & macOS (POSIX Shell)
@@ -69,14 +143,9 @@ Installs binaries into `~/.local/bin` and registers browser native host manifest
 curl -fsSL https://raw.githubusercontent.com/uixatik/maya/main/install.sh | sh
 ```
 
-Or run locally:
-```sh
-chmod +x ./install.sh && ./install.sh
-```
-
 ---
 
-### 2. Package Managers
+### 3. Package Managers
 
 #### Windows (Scoop)
 ```powershell
@@ -97,8 +166,11 @@ makepkg -si
 
 ---
 
-### 3. Build & Install via Cargo
+### 4. Build from Source via Cargo
+
 ```sh
+git clone https://github.com/uixatik/maya.git
+cd maya
 cargo install --path crates/maya-cli --force
 cargo install --path crates/maya-daemon --force
 cargo install --path crates/maya-nmh --force
@@ -106,31 +178,9 @@ cargo install --path crates/maya-nmh --force
 
 ---
 
-## Desktop Graphical Interface (GUI)
+## CLI & TUI Usage
 
-Maya features a dedicated high-performance desktop GUI built with **Tauri v2**, providing an IDM/FDM-grade user experience with real-time transfer monitoring:
-
-- **Dashboard**: Real-time aggregate download/upload throughput sparkline chart, global speed badges, and active task progress meters.
-- **Categorized Queue Management**: Filter downloads by `All`, `Downloading`, `Completed`, `Paused`, `Failed`, `Videos`, and `Torrents`.
-- **Add URL Dialog**: Configurable connection count (1–32 streams), destination folder picker, custom headers, and instant download vs. background queue scheduling.
-- **Daemon Synchronization**: Automatically communicates with `mayad` over Windows Named Pipe (`\\.\pipe\maya-daemon`) or Unix domain socket (`~/.maya/maya.sock`).
-
-```sh
-# Run in development mode
-cd apps/maya-gui
-npm install
-npm run tauri dev
-
-# Build production bundle
-npm run tauri build
-```
-
----
-
-## CLI Usage
-
-### 1. `maya get` (aliases: `dl`, `download`)
-
+### 1. `maya get`
 Download files via HTTP/HTTPS, media platforms, or torrents:
 
 ```sh
@@ -146,47 +196,74 @@ maya get "https://example.com/largefile.iso" -c 8 -d ./downloads
 maya get "https://example.com/data.tar.gz" --limit 5M
 
 # Streaming Video extraction (YouTube, Vimeo, etc.)
-maya get "https://www.youtube.com/watch?v=BMzW1i1OJ_o" -d ./downloads
+maya get "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -d ./downloads
 
 # Checksum verification (SHA-256, BLAKE3, MD5, SHA-512)
 maya get "https://example.com/file.zip" --verify sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 # Multi-mirror failover and Metalink
-maya get "https://primary.mirror.org/ubuntu.iso" --mirror "https://backup1.org/ubuntu.iso" --mirror "https://backup2.org/ubuntu.iso"
+maya get "https://primary.mirror.org/ubuntu.iso" --mirror "https://backup1.org/ubuntu.iso"
 maya get --metalink ./release.meta4 -d ./downloads
 ```
+
+### 2. Interactive Terminal Dashboard (`maya tui`)
+```sh
+maya tui
+```
+Launches the full-screen terminal dashboard with real-time transfer sparklines, active downloads list, and keyboard shortcuts (`[p] Pause`, `[r] Resume`, `[c] Cancel`, `[a] Add`, `[q] Quit`).
+
+### 3. System Diagnostics (`maya doctor`)
+```sh
+maya doctor
+```
+Verifies file write permissions, torrent engine availability, and detects system tools (`ffmpeg`, `yt-dlp`).
 
 ---
 
 ## Browser Extension Integration
 
-Maya includes a high-performance Browser Extension (`extensions/browser-capture`) paired with the Native Messaging Host (`maya-nmh`) for Chrome, Microsoft Edge, Brave, Opera, Vivaldi, and Mozilla Firefox. It automatically captures browser downloads and routes them directly to `mayad` for accelerated, segmented transfer.
+Maya includes a Manifest V3 browser extension (`extensions/browser-capture`) paired with `maya-nmh` for Chrome, Edge, Brave, and Firefox:
 
-### 1. Register Native Messaging Host
 ```sh
-# Automatically registers with Chrome, Edge, and Firefox
+# Register Native Messaging Host manifests with all installed browsers
 maya-nmh --install-manifest
 ```
 
-### 2. Load the Extension into Chromium Browsers (Chrome / Edge / Brave)
-1. Open your browser and navigate to `chrome://extensions` or `edge://extensions`.
-2. Enable the **Developer mode** toggle in the top-right corner.
-3. Click the **Load unpacked** button.
-4. Select the `extensions/browser-capture` directory.
+1. Open `chrome://extensions` (or `edge://extensions` / `about:debugging`).
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select `extensions/browser-capture`.
+4. Any download clicked in the browser will automatically route to Maya!
 
 ---
 
-## Development & Test Suite
+## Security Policy
 
-Run full code quality verification across all workspace crates:
+Maya implements defensive security controls:
+- **SSRF Defense**: Proactively blocks loopback, private IPv4 (RFC 1918), link-local, multicast, and IPv4-mapped IPv6 ranges.
+- **Path Traversal Protection**: Sanitizes filenames against relative directory traversal tokens and reserved Windows device names (`CON`, `PRN`, `AUX`, `NUL`, etc.).
+- **Zero Dynamic SSL Dependencies**: Compiles exclusively with `rustls`.
+
+For vulnerability disclosures, see [SECURITY.md](SECURITY.md).
+
+---
+
+## Contributing & Development
+
+We welcome contributions! Please review [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ```sh
 # Formatting check
 cargo fmt --all -- --check
 
-# Clippy linter
+# Clippy linter (zero warnings policy)
 cargo clippy --workspace --all-targets -- -D warnings
 
-# Full workspace test suite (125 tests passing)
+# Run all 128 tests
 cargo test --workspace
 ```
+
+---
+
+## License
+
+Maya is licensed under the [MIT License](LICENSE).
