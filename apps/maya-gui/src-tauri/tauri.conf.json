@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Maya",
+  "version": "0.0.1",
+  "identifier": "com.maya.downloader",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Maya Downloader",
+        "width": 1080,
+        "height": 720,
+        "minWidth": 800,
+        "minHeight": 500,
+        "resizable": true,
+        "decorations": true,
+        "backgroundColor": "#0f172a"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Uixatik",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  }
+}

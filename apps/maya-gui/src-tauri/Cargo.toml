@@ -1,0 +1,15 @@
+[package]
+name = "maya-gui"
+version = "0.0.1"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+maya-ipc = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+dirs = { workspace = true }
