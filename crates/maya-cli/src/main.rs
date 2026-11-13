@@ -521,11 +521,17 @@ fn find_gui_executable() -> Option<PathBuf> {
             localappdata_candidates.push(val);
         }
     }
-    for base in localappdata_candidates {
+    for base in &localappdata_candidates {
         for name in exe_names {
+            // Check %LOCALAPPDATA%\Programs\Maya\<name>
             let p = base.join("Programs").join("Maya").join(name);
             if p.is_file() {
                 return Some(p);
+            }
+            // Check %LOCALAPPDATA%\Maya\<name>
+            let p_alt = base.join("Maya").join(name);
+            if p_alt.is_file() {
+                return Some(p_alt);
             }
         }
     }
