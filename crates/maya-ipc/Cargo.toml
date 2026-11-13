@@ -1,0 +1,13 @@
+[package]
+name = "maya-ipc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Inter-process communication types and protocol for Maya downloader daemon and clients"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+uuid.workspace = true
