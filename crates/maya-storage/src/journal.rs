@@ -78,3 +78,115 @@ impl StateJournal {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use maya_core::{Segment, SegmentState};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    struct TempDirGuard {
+        path: PathBuf,
+    }
+
+    impl TempDirGuard {
+        fn new(prefix: &str) -> Self {
+            let id = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "maya-storage-journal-{prefix}-{}-{id}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&path).expect("create temp test dir");
+            Self { path }
+        }
+    }
+
+    impl Drop for TempDirGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn sample_state(dir: &Path, downloaded: u64) -> DownloadState {
+        let target = dir.join("archive.tar.gz");
+        DownloadState {
+            version: 1,
+            source: "https://example.com/archive.tar.gz".to_string(),
+            resolved_url: "https://cdn.example.com/archive.tar.gz".to_string(),
+            part_path: part_path_for(&target),
+            target_path: target,
+            total_size: Some(4096),
+            etag: Some("\"etag-1\"".to_string()),
+            last_modified: Some("Wed, 21 Oct 2015 07:28:00 GMT".to_string()),
+            segments: vec![
+                Segment {
+                    index: 0,
+                    start: 0,
+                    end: Some(2048),
+                    downloaded,
+                    state: SegmentState::Active,
+                },
+                Segment {
+                    index: 1,
+                    start: 2048,
+                    end: Some(4096),
+                    downloaded: 0,
+                    state: SegmentState::Pending,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn path_helpers_append_suffixes_preserving_extensions() {
+        let target = Path::new("downloads/archive.tar.gz");
+        assert_eq!(
+            part_path_for(target),
+            PathBuf::from("downloads/archive.tar.gz.maya.part")
+        );
+        assert_eq!(
+            state_path_for(target),
+            PathBuf::from("downloads/archive.tar.gz.maya.state")
+        );
+
+        let no_ext = Path::new("downloads/README");
+        assert_eq!(
+            part_path_for(no_ext),
+            PathBuf::from("downloads/README.maya.part")
+        );
+        assert_eq!(
+            state_path_for(no_ext),
+            PathBuf::from("downloads/README.maya.state")
+        );
+    }
+
+    #[test]
+    fn load_missing_returns_none_and_save_atomic_overwrites() {
+        let dir = TempDirGuard::new("atomic");
+        let state_path = dir.path.join("nested").join("file.bin.maya.state");
+
+        assert_eq!(StateJournal::load(&state_path).expect("load missing"), None);
+
+        let first = sample_state(&dir.path, 512);
+        StateJournal::save_atomic(&state_path, &first).expect("save initial state");
+        assert!(!append_suffix(&state_path, ".tmp").exists());
+        assert_eq!(
+            StateJournal::load(&state_path).expect("load first"),
+            Some(first)
+        );
+
+        let second = sample_state(&dir.path, 1536);
+        StateJournal::save_atomic(&state_path, &second).expect("overwrite state atomically");
+        assert!(!append_suffix(&state_path, ".tmp").exists());
+        assert_eq!(
+            StateJournal::load(&state_path).expect("load second"),
+            Some(second)
+        );
+
+        StateJournal::remove(&state_path).expect("remove existing");
+        assert!(!state_path.exists());
+        StateJournal::remove(&state_path).expect("remove idempotent");
+    }
+}

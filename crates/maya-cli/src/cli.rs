@@ -705,6 +705,25 @@ mod tests {
             }
             _ => panic!("expected Commands::Daemon"),
         }
+
+        let parsed_queue = Cli::parse_from([
+            "maya",
+            "queue",
+            "add",
+            "https://example.com/file.bin",
+            "-o",
+            "out.bin",
+        ]);
+        match parsed_queue.command {
+            Commands::Queue(args) => match args.action {
+                QueueSubcommand::Add(add) => {
+                    assert_eq!(add.url, "https://example.com/file.bin");
+                    assert_eq!(add.out.as_deref(), Some("out.bin"));
+                }
+                _ => panic!("expected QueueSubcommand::Add"),
+            },
+            _ => panic!("expected Commands::Queue"),
+        }
     }
 
     #[test]
