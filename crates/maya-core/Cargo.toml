@@ -1,0 +1,21 @@
+[package]
+name = "maya-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core types, traits, engine, and security policies for Maya downloader"
+
+[dependencies]
+async-trait.workspace = true
+blake3.workspace = true
+bytes.workspace = true
+futures.workspace = true
+http.workspace = true
+quick-xml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+url.workspace = true
