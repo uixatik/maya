@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maya Downloader</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- Top Bar -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v14M19 9l-7 7-7-7" />
+            <path d="M2 20h20" />
+          </svg>
+        </div>
+        <span>MAYA</span>
+        <span class="brand-badge">v0.0.1</span>
+      </div>
+
+      <div class="toolbar-actions">
+        <button id="btn-add-modal" class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add URL
+        </button>
+        <button id="btn-resume-selected" class="btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          Resume
+        </button>
+        <button id="btn-pause-selected" class="btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+          Pause
+        </button>
+        <button id="btn-delete-selected" class="btn btn-danger">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          Delete
+        </button>
+
+        <div class="divider"></div>
+
+        <button id="btn-settings-modal" class="btn btn-icon-only" title="Settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Global speed gauge -->
+      <div class="speed-gauge">
+        <div class="speed-metric down">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <polyline points="19 12 12 19 5 12"></polyline>
+          </svg>
+          <span id="global-speed-down">0.0 MB/s</span>
+        </div>
+        <div class="speed-metric up">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+          </svg>
+          <span id="global-speed-up">0.0 KB/s</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="app-body">
+      <!-- Left Category Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-title">Categories</div>
+        <div class="category-item active" data-category="all">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>All Downloads</span>
+          </div>
+          <span id="count-all" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="downloading">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+            <span>Downloading</span>
+          </div>
+          <span id="count-downloading" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="completed">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Completed</span>
+          </div>
+          <span id="count-completed" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="paused">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            <span>Paused</span>
+          </div>
+          <span id="count-paused" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="failed">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <span>Failed</span>
+          </div>
+          <span id="count-failed" class="badge-count">0</span>
+        </div>
+
+        <div class="sidebar-title" style="margin-top: 10px;">Media Types</div>
+
+        <div class="category-item" data-category="videos">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span>Videos</span>
+          </div>
+          <span id="count-videos" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="torrents">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 8v8M8 12h8"></path>
+            </svg>
+            <span>Torrents</span>
+          </div>
+          <span id="count-torrents" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="archives">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 8v13H3V8"></path>
+              <path d="M1 3h22v5H1z"></path>
+              <line x1="10" y1="12" x2="14" y2="12"></line>
+            </svg>
+            <span>Archives</span>
+          </div>
+          <span id="count-archives" class="badge-count">0</span>
+        </div>
+
+        <div class="category-item" data-category="documents">
+          <div class="category-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span>Documents</span>
+          </div>
+          <span id="count-documents" class="badge-count">0</span>
+        </div>
+      </aside>
+
+      <!-- Main Content / Table View -->
+      <main class="main-view">
+        <div class="view-toolbar">
+          <div class="search-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="filter-input" placeholder="Search downloads by name or URL..." />
+          </div>
+          <div class="view-info" id="view-status-text">Showing all downloads</div>
+        </div>
+
+        <div class="table-container">
+          <table class="job-table">
+            <thead>
+              <tr>
+                <th style="width: 32px;"><input type="checkbox" id="select-all" /></th>
+                <th>File Name & URL</th>
+                <th style="width: 90px;">Size</th>
+                <th class="progress-col">Progress</th>
+                <th style="width: 100px;">Speed</th>
+                <th style="width: 90px;">ETA</th>
+                <th style="width: 100px;">Status</th>
+                <th style="width: 90px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-table-body">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+
+          <div id="empty-state" class="empty-state" style="display: none;">
+            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <p>No downloads in this view. Click "Add URL" to start!</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Bottom Status Bar -->
+    <footer class="status-bar">
+      <div class="status-bar-left">
+        <div class="daemon-indicator">
+          <span id="daemon-dot" class="status-dot online"></span>
+          <span id="daemon-status-text">Daemon Connected (IPC)</span>
+        </div>
+        <span id="threads-indicator">⚡ 16 threads active</span>
+      </div>
+
+      <div class="status-bar-right">
+        <span id="total-rates-indicator">↓ 0.0 MB/s | ↑ 0.0 KB/s</span>
+        <span id="jobs-summary-indicator">0 active / 0 total</span>
+      </div>
+    </footer>
+
+    <!-- Add Download Modal Dialog -->
+    <div id="add-modal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add New Download
+          </div>
+          <button id="btn-close-add-modal" class="btn btn-tiny">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="add-url">Download URL (HTTP, HTTPS, Torrent, Magnet, YouTube)</label>
+            <input type="text" id="add-url" class="form-input" placeholder="https://example.com/file.zip or magnet:?..." autofocus />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="add-category">Category</label>
+              <select id="add-category" class="form-select">
+                <option value="general">General</option>
+                <option value="videos">Video / Media</option>
+                <option value="torrents">Torrent</option>
+                <option value="archives">Compressed / Archive</option>
+                <option value="documents">Document</option>
+                <option value="applications">Application / Executable</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="add-filename">Save As (optional)</label>
+              <input type="text" id="add-filename" class="form-input" placeholder="custom_name.ext" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="add-dest">Destination Folder</label>
+            <input type="text" id="add-dest" class="form-input" value="Downloads" />
+          </div>
+
+          <div class="form-group">
+            <div class="form-label">
+              <span>Parallel Connections</span>
+              <span id="slider-conns-val" style="color: var(--accent-cyan);">8 connections</span>
+            </div>
+            <div class="slider-container">
+              <input type="range" id="add-connections" min="1" max="32" value="8" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Download Action</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="download-action" value="start" checked />
+                <span>Download Immediately</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="download-action" value="queue" />
+                <span>Add to Queue</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-cancel-add" class="btn">Cancel</button>
+          <button id="btn-submit-add" class="btn btn-primary">Start Download</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal Dialog -->
+    <div id="settings-modal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Maya Downloader Settings
+          </div>
+          <button id="btn-close-settings-modal" class="btn btn-tiny">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="settings-default-dir">Default Download Directory</label>
+            <input type="text" id="settings-default-dir" class="form-input" value="~/Downloads" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-default-conns">Default Connections Per Download</label>
+            <input type="number" id="settings-default-conns" class="form-input" value="8" min="1" max="32" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-ipc-endpoint">Daemon IPC Pipe</label>
+            <input type="text" id="settings-ipc-endpoint" class="form-input" value="\\.\pipe\maya-daemon" readonly />
+          </div>
+
+          <div class="form-group">
+            <label class="radio-label">
+              <input type="checkbox" id="settings-autostart" checked />
+              <span>Automatically start Maya Daemon (mayad) if offline</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
