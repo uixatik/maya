@@ -43,7 +43,7 @@ impl DownloadItem {
         let name = Path::new(&info.dest)
             .file_name()
             .and_then(|s| s.to_str())
-            .filter(|s| !s.empty())
+            .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {
                 info.url
                     .rsplit('/')

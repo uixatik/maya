@@ -1,3 +1,5 @@
+//! Disk persistence, part-file management, resume state, and checksum verification for Maya.
+
 pub mod journal;
 pub mod verify;
 pub mod writer;
