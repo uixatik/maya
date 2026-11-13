@@ -1,0 +1,27 @@
+[package]
+name = "maya-protocols"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HTTP/HTTPS and BitTorrent/Magnet protocol clients for Maya downloader"
+
+[features]
+default = ["torrent"]
+torrent = ["dep:librqbit"]
+
+[dependencies]
+aes.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+cbc.workspace = true
+futures.workspace = true
+http.workspace = true
+librqbit = { workspace = true, optional = true }
+maya-core.workspace = true
+quick-xml.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["process", "io-util"] }
+url.workspace = true
