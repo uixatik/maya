@@ -1,0 +1,50 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/maya-core",
+    "crates/maya-storage",
+    "crates/maya-protocols",
+    "crates/maya-cli",
+    "crates/maya-ipc",
+    "crates/maya-daemon",
+    "crates/maya-nmh",
+    "apps/maya-gui/src-tauri",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/uixatik/maya"
+
+[workspace.dependencies]
+maya-core = { path = "crates/maya-core" }
+maya-storage = { path = "crates/maya-storage" }
+maya-protocols = { path = "crates/maya-protocols" }
+maya-ipc = { path = "crates/maya-ipc" }
+
+aes = "0.8"
+async-trait = "0.1"
+blake3 = "1"
+bytes = "1"
+cbc = "0.1"
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.28"
+dirs = "6"
+futures = "0.3"
+http = "1"
+indicatif = "0.17"
+librqbit = { version = "9.1.0", default-features = false, features = ["rust-tls"] }
+md-5 = "0.10"
+quick-xml = "0.37"
+ratatui = "0.29"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "gzip", "brotli", "deflate", "socks"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+subtle = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+toml = "0.8"
+url = "2"
