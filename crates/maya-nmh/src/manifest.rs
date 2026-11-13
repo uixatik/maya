@@ -10,6 +10,8 @@ pub const HOST_NAME: &str = "com.maya.downloader";
 pub const HOST_DESCRIPTION: &str = "Maya Downloader Native Messaging Host";
 pub const FIREFOX_EXTENSION_ID: &str = "maya@downloader.local";
 pub const DEFAULT_CHROME_EXTENSION_ID: &str =
+    "chrome-extension://afhohkapebiilmgjajpeadjeclfnioaf/";
+pub const LEGACY_CHROME_EXTENSION_ID: &str =
     "chrome-extension://knldjmfmopnppmplflldnbgahglgbeoh/";
 
 /// Native messaging manifest for Chromium-based browsers (Chrome, Edge, Brave, Opera, Vivaldi).
@@ -47,6 +49,7 @@ pub fn generate_chrome_manifest(host_binary: &Path, allowed_origins: &[String]) 
     let mut origins = allowed_origins.to_vec();
     if origins.is_empty() {
         origins.push(DEFAULT_CHROME_EXTENSION_ID.to_string());
+        origins.push(LEGACY_CHROME_EXTENSION_ID.to_string());
     }
     ChromeManifest {
         name: HOST_NAME.to_string(),
@@ -292,7 +295,7 @@ mod tests {
         let default_manifest = generate_chrome_manifest(bin, &[]);
         assert_eq!(
             default_manifest.allowed_origins,
-            vec![DEFAULT_CHROME_EXTENSION_ID]
+            vec![DEFAULT_CHROME_EXTENSION_ID, LEGACY_CHROME_EXTENSION_ID]
         );
         assert!(!default_manifest
             .allowed_origins

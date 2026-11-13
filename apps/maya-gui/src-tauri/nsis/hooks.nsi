@@ -31,6 +31,10 @@
       ExecWait '"$INSTDIR\bin\maya-nmh.exe" --install-manifest'
 
     DetailPrint "Configuring Chromium External Extension Registry..."
+    WriteRegStr HKCU "Software\Google\Chrome\Extensions\afhohkapebiilmgjajpeadjeclfnioaf" "path" "$INSTDIR\extensions\browser-capture"
+    WriteRegStr HKCU "Software\Google\Chrome\Extensions\afhohkapebiilmgjajpeadjeclfnioaf" "version" "0.1.0"
+    WriteRegStr HKCU "Software\Microsoft\Edge\Extensions\afhohkapebiilmgjajpeadjeclfnioaf" "path" "$INSTDIR\extensions\browser-capture"
+    WriteRegStr HKCU "Software\Microsoft\Edge\Extensions\afhohkapebiilmgjajpeadjeclfnioaf" "version" "0.1.0"
     WriteRegStr HKCU "Software\Google\Chrome\Extensions\knldjmfmopnppmplflldnbgahglgbeoh" "path" "$INSTDIR\extensions\browser-capture"
     WriteRegStr HKCU "Software\Google\Chrome\Extensions\knldjmfmopnppmplflldnbgahglgbeoh" "version" "0.1.0"
     WriteRegStr HKCU "Software\Microsoft\Edge\Extensions\knldjmfmopnppmplflldnbgahglgbeoh" "path" "$INSTDIR\extensions\browser-capture"
@@ -55,6 +59,8 @@
     ExecWait '"$INSTDIR\bin\maya-nmh.exe" --uninstall-manifest'
 
   DetailPrint "Cleaning Chromium External Extension Registry..."
+  DeleteRegKey HKCU "Software\Google\Chrome\Extensions\afhohkapebiilmgjajpeadjeclfnioaf"
+  DeleteRegKey HKCU "Software\Microsoft\Edge\Extensions\afhohkapebiilmgjajpeadjeclfnioaf"
   DeleteRegKey HKCU "Software\Google\Chrome\Extensions\knldjmfmopnppmplflldnbgahglgbeoh"
   DeleteRegKey HKCU "Software\Microsoft\Edge\Extensions\knldjmfmopnppmplflldnbgahglgbeoh"
 

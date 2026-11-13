@@ -7,3 +7,6 @@ dist/
 test_downloads/
 node_modules/
 apps/maya-gui/src-tauri/gen/
+
+# Extension signing private key
+extensions/browser-capture/key.pem

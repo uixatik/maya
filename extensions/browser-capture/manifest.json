@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Maya Downloader Integration",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq3SwYjjwMmo2GfHIFjsu+bdB5T4aSt3CoNkr5QuinGXG4UM9tbbrYjNc85KYDu3NbGleSWGxcTvknELcVjQfPWVITrTw3ZND+vT7Q6vNQrQRITyhWiYvneGhjvgcE7WF//va3ogsSmWmv8ku7QBmbF22lYTGcTgWXacaYrupbvLe6ioANZ4KoEBEXmPdVuKx3jnpIheIWZAj7MAGU3eoOcqa40581WhnfeZvnBGIYkBKYWB9RG92H3K5NQkds776y/L5vD6/JCkvDx/iiyYmTtaCtVbC2gW7iT2RDrNWspWVTk8/rlw1FVAXqMCFBQL7VFaHr1pl1FVVYNIZ/jsK6QIDAQAB",
   "description": "High-performance browser download manager integration for Maya Downloader",
   "permissions": [
     "downloads",

@@ -28,7 +28,7 @@ fn test_chrome_manifest_structure() {
 fn test_chrome_manifest_default_origin() {
     let host = Path::new("C:/Program Files/Maya/maya-nmh.exe");
     let manifest = generate_chrome_manifest(host, &[]);
-    assert_eq!(manifest.allowed_origins, vec![DEFAULT_CHROME_EXTENSION_ID]);
+    assert!(manifest.allowed_origins.contains(&DEFAULT_CHROME_EXTENSION_ID.to_string()));
     assert!(!manifest
         .allowed_origins
         .contains(&"chrome-extension://*".to_string()));
