@@ -12,7 +12,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::{
-    split, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf, WriteHalf,
+    split, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader,
+    ReadHalf, WriteHalf,
 };
 use tokio::sync::{broadcast, oneshot, watch, Mutex};
 use tokio::task::{JoinHandle, JoinSet};
@@ -31,7 +32,10 @@ pub const DEFAULT_WINDOWS_PIPE_NAME: &str = r"\\.\pipe\maya-daemon";
 pub const DEFAULT_UNIX_SOCKET_NAME: &str = "maya.sock";
 
 /// Default fallback Unix domain socket path when neither `XDG_RUNTIME_DIR` nor `HOME` is set.
-pub const DEFAULT_UNIX_SOCKET_PATH: &str = "/tmp/maya.sock";
+pub const DEFAULT_UNIX_SOCKET_PATH: &str = "/tmp/maya-root/maya.sock";
+
+/// Maximum allowed size for a single incoming IPC message frame (1 MiB).
+pub const MAX_IPC_MESSAGE_SIZE: usize = 1024 * 1024;
 
 fn default_jsonrpc() -> String {
     JSONRPC_VERSION.to_string()
@@ -78,7 +82,7 @@ pub fn resolve_unix_socket_path_from(xdg_runtime_dir: Option<&str>, home: Option
 /// Return the default cross-platform IPC endpoint for the Maya daemon.
 ///
 /// - Windows: `\\.\pipe\maya-daemon`
-/// - Unix: `$XDG_RUNTIME_DIR/maya.sock` or `~/.maya/maya.sock` (falling back to `/tmp/maya.sock`)
+/// - Unix: `$XDG_RUNTIME_DIR/maya.sock` or `~/.maya/maya.sock` (falling back to `/tmp/maya-root/maya.sock`)
 pub fn default_ipc_endpoint() -> String {
     #[cfg(windows)]
     {
@@ -452,9 +456,18 @@ impl IpcClient {
             let mut line = String::new();
             loop {
                 line.clear();
-                match reader.read_line(&mut line).await {
+                match (&mut reader)
+                    .take(MAX_IPC_MESSAGE_SIZE as u64 + 1)
+                    .read_line(&mut line)
+                    .await
+                {
                     Ok(0) | Err(_) => break,
                     Ok(_) => {
+                        if line.len() > MAX_IPC_MESSAGE_SIZE
+                            || (line.len() >= MAX_IPC_MESSAGE_SIZE && !line.ends_with('\n'))
+                        {
+                            break;
+                        }
                         let trimmed = line.trim();
                         if trimmed.is_empty() {
                             continue;
@@ -647,9 +660,19 @@ impl IpcConnection {
         let mut line = String::new();
         loop {
             line.clear();
-            let read = self.reader.read_line(&mut line).await?;
+            let read = (&mut self.reader)
+                .take(MAX_IPC_MESSAGE_SIZE as u64 + 1)
+                .read_line(&mut line)
+                .await?;
             if read == 0 {
                 return Ok(None);
+            }
+            if line.len() > MAX_IPC_MESSAGE_SIZE
+                || (line.len() >= MAX_IPC_MESSAGE_SIZE && !line.ends_with('\n'))
+            {
+                return Err(IpcError::Protocol(
+                    "IPC message frame exceeded 1 MiB limit".to_string(),
+                ));
             }
             let trimmed = line.trim();
             if trimmed.is_empty() {
@@ -919,7 +942,7 @@ mod tests {
         );
         assert_eq!(
             resolve_unix_socket_path_from(Some("  "), None),
-            PathBuf::from("/tmp/maya.sock")
+            PathBuf::from("/tmp/maya-root/maya.sock")
         );
     }
 
@@ -1089,5 +1112,299 @@ mod tests {
             .await
             .expect("server join timeout")
             .expect("server task clean");
+    }
+
+    #[test]
+    fn max_ipc_message_size_constant_is_1_mib() {
+        assert_eq!(MAX_IPC_MESSAGE_SIZE, 1024 * 1024);
+    }
+
+    #[test]
+    fn unix_socket_path_fallback_uses_maya_root() {
+        assert_eq!(
+            resolve_unix_socket_path_from(None, None),
+            PathBuf::from("/tmp/maya-root/maya.sock")
+        );
+        assert_eq!(
+            resolve_unix_socket_path_from(Some(""), Some("")),
+            PathBuf::from("/tmp/maya-root/maya.sock")
+        );
+    }
+
+    #[test]
+    fn unix_socket_path_xdg_priority_over_home() {
+        let p = resolve_unix_socket_path_from(Some("/custom/xdg"), Some("/custom/home"));
+        assert_eq!(p, PathBuf::from("/custom/xdg/maya.sock"));
+    }
+
+    #[test]
+    fn unix_socket_path_home_when_xdg_whitespace() {
+        let p = resolve_unix_socket_path_from(Some(" \t "), Some("/custom/home"));
+        assert_eq!(p, PathBuf::from("/custom/home/.maya/maya.sock"));
+    }
+
+    #[test]
+    fn unix_socket_path_fallback_when_both_whitespace() {
+        let p = resolve_unix_socket_path_from(Some("   "), Some(" \n "));
+        assert_eq!(p, PathBuf::from("/tmp/maya-root/maya.sock"));
+    }
+
+    #[tokio::test]
+    async fn ipc_connection_rejects_frame_exceeding_1_mib() {
+        let (mut client, server) = tokio::io::duplex(2 * 1024 * 1024);
+        let mut conn = IpcConnection::new(Box::new(server));
+
+        let writer = tokio::spawn(async move {
+            let mut payload = vec![b'a'; MAX_IPC_MESSAGE_SIZE + 10];
+            payload.push(b'\n');
+            let _ = client.write_all(&payload).await;
+        });
+
+        let res = conn.recv_request().await;
+        let _ = writer.await;
+
+        match res {
+            Err(IpcError::Protocol(msg)) => {
+                assert_eq!(msg, "IPC message frame exceeded 1 MiB limit");
+            }
+            other => panic!("expected Protocol error, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn ipc_connection_rejects_frame_reaching_limit_without_newline() {
+        let (mut client, server) = tokio::io::duplex(2 * 1024 * 1024);
+        let mut conn = IpcConnection::new(Box::new(server));
+
+        let writer = tokio::spawn(async move {
+            let payload = vec![b'x'; MAX_IPC_MESSAGE_SIZE];
+            let _ = client.write_all(&payload).await;
+            drop(client);
+        });
+
+        let res = conn.recv_request().await;
+        let _ = writer.await;
+
+        match res {
+            Err(IpcError::Protocol(msg)) => {
+                assert_eq!(msg, "IPC message frame exceeded 1 MiB limit");
+            }
+            other => panic!("expected Protocol error, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn ipc_connection_accepts_valid_request_under_limit() {
+        let (mut client, server) = tokio::io::duplex(1024);
+        let mut conn = IpcConnection::new(Box::new(server));
+
+        let req = IpcRequest::new(RpcRequest::JobList);
+        let mut data = serde_json::to_vec(&req).unwrap();
+        data.push(b'\n');
+
+        let writer = tokio::spawn(async move {
+            client.write_all(&data).await.unwrap();
+        });
+
+        let received = conn.recv_request().await.unwrap();
+        writer.await.unwrap();
+
+        assert_eq!(received, Some(req));
+    }
+
+    #[tokio::test]
+    async fn ipc_connection_skips_empty_lines() {
+        let (mut client, server) = tokio::io::duplex(1024);
+        let mut conn = IpcConnection::new(Box::new(server));
+
+        let req = IpcRequest::new(RpcRequest::DaemonStatus);
+        let mut data = Vec::new();
+        data.extend_from_slice(b"\n  \n\r\n");
+        let mut req_bytes = serde_json::to_vec(&req).unwrap();
+        req_bytes.push(b'\n');
+        data.extend_from_slice(&req_bytes);
+
+        let writer = tokio::spawn(async move {
+            client.write_all(&data).await.unwrap();
+        });
+
+        let received = conn.recv_request().await.unwrap();
+        writer.await.unwrap();
+
+        assert_eq!(received, Some(req));
+    }
+
+    #[tokio::test]
+    async fn ipc_connection_returns_none_on_eof() {
+        let (client, server) = tokio::io::duplex(1024);
+        let mut conn = IpcConnection::new(Box::new(server));
+
+        drop(client);
+        let received = conn.recv_request().await.unwrap();
+        assert_eq!(received, None);
+    }
+
+    #[test]
+    fn job_state_parsing_and_terminal_states() {
+        assert_eq!(JobState::from_str("queued").unwrap(), JobState::Queued);
+        assert_eq!(
+            JobState::from_str("downloading").unwrap(),
+            JobState::Downloading
+        );
+        assert_eq!(JobState::from_str("paused").unwrap(), JobState::Paused);
+        assert_eq!(
+            JobState::from_str("completed").unwrap(),
+            JobState::Completed
+        );
+        assert_eq!(JobState::from_str("failed").unwrap(), JobState::Failed);
+        assert_eq!(
+            JobState::from_str("cancelled").unwrap(),
+            JobState::Cancelled
+        );
+        assert_eq!(JobState::from_str("canceled").unwrap(), JobState::Cancelled);
+
+        assert!(!JobState::Queued.is_terminal());
+        assert!(!JobState::Downloading.is_terminal());
+        assert!(!JobState::Paused.is_terminal());
+        assert!(JobState::Completed.is_terminal());
+        assert!(JobState::Failed.is_terminal());
+        assert!(JobState::Cancelled.is_terminal());
+    }
+
+    #[test]
+    fn job_state_from_str_invalid_returns_protocol_error() {
+        let err = JobState::from_str("bogus_state").unwrap_err();
+        assert!(matches!(err, IpcError::Protocol(msg) if msg.contains("bogus_state")));
+    }
+
+    #[test]
+    fn job_state_display_matches_as_str() {
+        for state in [
+            JobState::Queued,
+            JobState::Downloading,
+            JobState::Paused,
+            JobState::Completed,
+            JobState::Failed,
+            JobState::Cancelled,
+        ] {
+            assert_eq!(format!("{state}"), state.as_str());
+        }
+    }
+
+    #[test]
+    fn job_options_defaults() {
+        let opts = JobOptions::default();
+        assert!(opts.output_dir.is_none());
+        assert!(opts.filename.is_none());
+        assert!(opts.connections.is_none());
+        assert!(opts.max_bytes_per_sec.is_none());
+        assert!(opts.headers.is_empty());
+        assert!(opts.checksum.is_none());
+        assert!(opts.overwrite.is_none());
+        assert!(opts.resume.is_none());
+        assert!(opts.allow_private_ips.is_none());
+    }
+
+    #[test]
+    fn rpc_response_constructors_and_conversions() {
+        let ok_resp = RpcResponse::ok("success_data").unwrap();
+        let val: String = ok_resp.into_result().unwrap();
+        assert_eq!(val, "success_data");
+
+        let err_resp = RpcResponse::err("failure_message");
+        let res: Result<String> = err_resp.into_result();
+        match res {
+            Err(IpcError::Remote(msg)) => assert_eq!(msg, "failure_message"),
+            other => panic!("expected Remote error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ipc_request_new_generates_unique_ids() {
+        let r1 = IpcRequest::new(RpcRequest::JobList);
+        let r2 = IpcRequest::new(RpcRequest::JobList);
+        assert_ne!(r1.id, r2.id);
+        assert_eq!(r1.jsonrpc, JSONRPC_VERSION);
+        assert_eq!(r2.jsonrpc, JSONRPC_VERSION);
+    }
+
+    #[test]
+    fn daemon_info_serialization_roundtrip() {
+        let info = DaemonInfo {
+            version: "0.0.1".to_string(),
+            protocol_version: IPC_PROTOCOL_VERSION,
+            pid: 1234,
+            uptime_secs: 5678,
+            active_jobs: 2,
+            queued_jobs: 5,
+            total_jobs: 7,
+        };
+        let serialized = serde_json::to_string(&info).unwrap();
+        let deserialized: DaemonInfo = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(info, deserialized);
+    }
+
+    #[test]
+    fn job_info_serialization_roundtrip() {
+        let info = JobInfo {
+            id: "uuid-test".to_string(),
+            url: "https://example.com/file".to_string(),
+            dest: "/tmp/file".to_string(),
+            status: JobState::Downloading,
+            downloaded_bytes: 1024,
+            total_bytes: Some(2048),
+            error: None,
+            created_at: 1000,
+            updated_at: 2000,
+        };
+        let serialized = serde_json::to_string(&info).unwrap();
+        let deserialized: JobInfo = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(info, deserialized);
+    }
+
+    #[tokio::test]
+    async fn ipc_connection_sender_sends_responses_and_events() {
+        let (client, server) = tokio::io::duplex(2048);
+        let conn = IpcConnection::new(Box::new(server));
+        let sender = conn.sender();
+        let mut client_reader = BufReader::new(client);
+
+        sender
+            .send_response("test-id", RpcResponse::err("err_msg"))
+            .await
+            .unwrap();
+
+        let mut line = String::new();
+        client_reader.read_line(&mut line).await.unwrap();
+        let parsed: ServerMessage = serde_json::from_str(&line).unwrap();
+        match parsed {
+            ServerMessage::Response(resp) => {
+                assert_eq!(resp.id, "test-id");
+                assert_eq!(resp.result, RpcResponse::Err("err_msg".to_string()));
+            }
+            _ => panic!("expected response"),
+        }
+
+        let ev = RpcEvent::JobProgress {
+            id: "job-100".to_string(),
+            downloaded: 100,
+            total: Some(200),
+            speed_bps: 50,
+            state: JobState::Downloading,
+        };
+        sender.send_event(ev.clone()).await.unwrap();
+
+        line.clear();
+        client_reader.read_line(&mut line).await.unwrap();
+        let parsed_ev: ServerMessage = serde_json::from_str(&line).unwrap();
+        match parsed_ev {
+            ServerMessage::Event(e) => assert_eq!(e, ev),
+            _ => panic!("expected event"),
+        }
+    }
+
+    #[test]
+    fn default_unix_socket_path_constant_is_secured() {
+        assert_eq!(DEFAULT_UNIX_SOCKET_PATH, "/tmp/maya-root/maya.sock");
     }
 }

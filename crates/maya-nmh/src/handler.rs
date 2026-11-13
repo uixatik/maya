@@ -36,7 +36,14 @@ async fn get_client() -> Result<IpcClient, String> {
 async fn dispatch_inner(msg: &Value) -> Result<Value, String> {
     // If the message is a raw JSON-RPC request with `method` and `params`
     if let Some(method) = msg.get("method").and_then(|m| m.as_str()) {
-        if let Ok(rpc_req) = serde_json::from_value::<RpcRequest>(msg.clone()) {
+        if let Ok(mut rpc_req) = serde_json::from_value::<RpcRequest>(msg.clone()) {
+            if let RpcRequest::JobAdd {
+                ref mut options, ..
+            } = rpc_req
+            {
+                // Security (MAYA-SEC-03): Disallow targeting private or loopback IP ranges from browser NMH
+                options.allow_private_ips = Some(false);
+            }
             let client = get_client().await?;
             let res = client.call(rpc_req).await.map_err(|e| e.to_string())?;
             return Ok(res);
@@ -55,6 +62,105 @@ async fn dispatch_inner(msg: &Value) -> Result<Value, String> {
         .ok_or_else(|| "Missing required 'action' or 'method' field in message".to_string())?;
 
     dispatch_by_action(action, msg).await
+}
+
+pub(crate) fn extract_job_options(msg: &Value) -> JobOptions {
+    let mut headers: Vec<(String, String)> = Vec::new();
+
+    // Extract explicit headers array: [["Header-Name", "value"], ...]
+    if let Some(arr) = msg.get("headers").and_then(|v| v.as_array()) {
+        for item in arr {
+            if let Some(pair) = item.as_array() {
+                if pair.len() == 2 {
+                    if let (Some(k), Some(v)) = (pair[0].as_str(), pair[1].as_str()) {
+                        headers.push((k.to_string(), v.to_string()));
+                    }
+                }
+            } else if let Some(map) = item.as_object() {
+                for (k, v) in map {
+                    if let Some(val_str) = v.as_str() {
+                        headers.push((k.to_string(), val_str.to_string()));
+                    }
+                }
+            }
+        }
+    } else if let Some(map) = msg.get("headers").and_then(|v| v.as_object()) {
+        for (k, v) in map {
+            if let Some(val_str) = v.as_str() {
+                headers.push((k.to_string(), val_str.to_string()));
+            }
+        }
+    }
+
+    // Extract referrer if provided
+    if let Some(referrer) = msg.get("referrer").and_then(|v| v.as_str()) {
+        if !referrer.trim().is_empty()
+            && !headers
+                .iter()
+                .any(|(k, _)| k.eq_ignore_ascii_case("Referer"))
+        {
+            headers.push(("Referer".to_string(), referrer.to_string()));
+        }
+    }
+
+    // Extract cookie/cookies if provided
+    if let Some(cookies) = msg
+        .get("cookies")
+        .or_else(|| msg.get("cookie"))
+        .and_then(|v| v.as_str())
+    {
+        if !cookies.trim().is_empty()
+            && !headers
+                .iter()
+                .any(|(k, _)| k.eq_ignore_ascii_case("Cookie"))
+        {
+            headers.push(("Cookie".to_string(), cookies.to_string()));
+        }
+    }
+
+    let filename = msg
+        .get("filename")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let output_dir = msg
+        .get("output_dir")
+        .or_else(|| msg.get("dest"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let connections = msg
+        .get("connections")
+        .and_then(|v| v.as_u64())
+        .map(|c| c as usize);
+
+    let max_bytes_per_sec = msg
+        .get("max_bytes_per_sec")
+        .or_else(|| msg.get("speed_limit"))
+        .and_then(|v| v.as_u64());
+
+    let checksum = msg
+        .get("checksum")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let overwrite = msg.get("overwrite").and_then(|v| v.as_bool());
+    let resume = msg.get("resume").and_then(|v| v.as_bool());
+
+    // Security (MAYA-SEC-03): Disallow targeting private or loopback IP ranges from browser NMH messages
+    let allow_private_ips = Some(false);
+
+    JobOptions {
+        output_dir,
+        filename,
+        connections,
+        max_bytes_per_sec,
+        headers,
+        checksum,
+        overwrite,
+        resume,
+        allow_private_ips,
+    }
 }
 
 async fn dispatch_by_action(action: &str, msg: &Value) -> Result<Value, String> {
@@ -91,100 +197,7 @@ async fn dispatch_by_action(action: &str, msg: &Value) -> Result<Value, String> 
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| "Missing required 'url' parameter for download".to_string())?;
 
-            let mut headers: Vec<(String, String)> = Vec::new();
-
-            // Extract explicit headers array: [["Header-Name", "value"], ...]
-            if let Some(arr) = msg.get("headers").and_then(|v| v.as_array()) {
-                for item in arr {
-                    if let Some(pair) = item.as_array() {
-                        if pair.len() == 2 {
-                            if let (Some(k), Some(v)) = (pair[0].as_str(), pair[1].as_str()) {
-                                headers.push((k.to_string(), v.to_string()));
-                            }
-                        }
-                    } else if let Some(map) = item.as_object() {
-                        for (k, v) in map {
-                            if let Some(val_str) = v.as_str() {
-                                headers.push((k.to_string(), val_str.to_string()));
-                            }
-                        }
-                    }
-                }
-            } else if let Some(map) = msg.get("headers").and_then(|v| v.as_object()) {
-                for (k, v) in map {
-                    if let Some(val_str) = v.as_str() {
-                        headers.push((k.to_string(), val_str.to_string()));
-                    }
-                }
-            }
-
-            // Extract referrer if provided
-            if let Some(referrer) = msg.get("referrer").and_then(|v| v.as_str()) {
-                if !referrer.trim().is_empty()
-                    && !headers
-                        .iter()
-                        .any(|(k, _)| k.eq_ignore_ascii_case("Referer"))
-                {
-                    headers.push(("Referer".to_string(), referrer.to_string()));
-                }
-            }
-
-            // Extract cookie/cookies if provided
-            if let Some(cookies) = msg
-                .get("cookies")
-                .or_else(|| msg.get("cookie"))
-                .and_then(|v| v.as_str())
-            {
-                if !cookies.trim().is_empty()
-                    && !headers
-                        .iter()
-                        .any(|(k, _)| k.eq_ignore_ascii_case("Cookie"))
-                {
-                    headers.push(("Cookie".to_string(), cookies.to_string()));
-                }
-            }
-
-            let filename = msg
-                .get("filename")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            let output_dir = msg
-                .get("output_dir")
-                .or_else(|| msg.get("dest"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            let connections = msg
-                .get("connections")
-                .and_then(|v| v.as_u64())
-                .map(|c| c as usize);
-
-            let max_bytes_per_sec = msg
-                .get("max_bytes_per_sec")
-                .or_else(|| msg.get("speed_limit"))
-                .and_then(|v| v.as_u64());
-
-            let checksum = msg
-                .get("checksum")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            let overwrite = msg.get("overwrite").and_then(|v| v.as_bool());
-            let resume = msg.get("resume").and_then(|v| v.as_bool());
-            let allow_private_ips = msg.get("allow_private_ips").and_then(|v| v.as_bool());
-
-            let options = JobOptions {
-                output_dir,
-                filename,
-                connections,
-                max_bytes_per_sec,
-                headers,
-                checksum,
-                overwrite,
-                resume,
-                allow_private_ips,
-            };
+            let options = extract_job_options(msg);
 
             let client = get_client().await?;
             let info = client
@@ -282,5 +295,23 @@ mod tests {
         let resp = handle_message(&msg).await;
         assert_eq!(resp.get("status").and_then(|v| v.as_str()), Some("error"));
         assert_eq!(resp.get("success").and_then(|v| v.as_bool()), Some(false));
+    }
+
+    #[test]
+    fn test_extract_job_options_disallows_private_ips() {
+        // Explicitly trying to enable private IPs must be overridden to Some(false)
+        let msg_with_private_ips = json!({
+            "url": "http://192.168.1.1/firmware.bin",
+            "allow_private_ips": true
+        });
+        let options = extract_job_options(&msg_with_private_ips);
+        assert_eq!(options.allow_private_ips, Some(false));
+
+        // When omitted, must also be Some(false) for browser security
+        let msg_default = json!({
+            "url": "https://example.com/file.zip"
+        });
+        let options_default = extract_job_options(&msg_default);
+        assert_eq!(options_default.allow_private_ips, Some(false));
     }
 }

@@ -9,6 +9,8 @@ use crate::NmhError;
 pub const HOST_NAME: &str = "com.maya.downloader";
 pub const HOST_DESCRIPTION: &str = "Maya Downloader Native Messaging Host";
 pub const FIREFOX_EXTENSION_ID: &str = "maya@downloader.local";
+pub const DEFAULT_CHROME_EXTENSION_ID: &str =
+    "chrome-extension://knldjmfmopnppmplflldnbgahglgbeoh/";
 
 /// Native messaging manifest for Chromium-based browsers (Chrome, Edge, Brave, Opera, Vivaldi).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,7 +46,7 @@ pub struct ManifestInstallReport {
 pub fn generate_chrome_manifest(host_binary: &Path, allowed_origins: &[String]) -> ChromeManifest {
     let mut origins = allowed_origins.to_vec();
     if origins.is_empty() {
-        origins.push("chrome-extension://*".to_string());
+        origins.push(DEFAULT_CHROME_EXTENSION_ID.to_string());
     }
     ChromeManifest {
         name: HOST_NAME.to_string(),
@@ -286,6 +288,15 @@ mod tests {
         let json = serde_json::to_string(&manifest).expect("serialize");
         assert!(json.contains("com.maya.downloader"));
         assert!(json.contains("allowed_origins"));
+
+        let default_manifest = generate_chrome_manifest(bin, &[]);
+        assert_eq!(
+            default_manifest.allowed_origins,
+            vec![DEFAULT_CHROME_EXTENSION_ID]
+        );
+        assert!(!default_manifest
+            .allowed_origins
+            .contains(&"chrome-extension://*".to_string()));
     }
 
     #[test]

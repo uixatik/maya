@@ -38,7 +38,7 @@ pub use handler::handle_message;
 pub use manifest::{
     generate_chrome_manifest, generate_firefox_manifest, install_manifests, resolve_host_binary,
     uninstall_manifests, ChromeManifest, FirefoxManifest, ManifestInstallReport,
-    FIREFOX_EXTENSION_ID, HOST_NAME,
+    DEFAULT_CHROME_EXTENSION_ID, FIREFOX_EXTENSION_ID, HOST_NAME,
 };
 pub use protocol::{
     read_message, read_message_sync, write_message, write_message_sync, MAX_MESSAGE_SIZE,

@@ -153,6 +153,12 @@ pub fn sanitize_filename(raw: &str) -> String {
 /// Validate that `filename` is a safe single path component and remains inside
 /// `output_dir`, returning the joined destination path.
 pub fn safe_target_path(output_dir: &Path, filename: &str) -> Result<PathBuf> {
+    if filename.starts_with('-') {
+        return Err(MayaError::SecurityViolation(format!(
+            "unsafe target filename starts with hyphen: '{filename}'"
+        )));
+    }
+
     if filename.is_empty()
         || filename == "."
         || filename == ".."
@@ -378,6 +384,9 @@ fn is_windows_reserved_name(name: &str) -> bool {
             | "LPT7"
             | "LPT8"
             | "LPT9"
+            | "CONIN$"
+            | "CONOUT$"
+            | "CLOCK$"
     )
 }
 
@@ -658,6 +667,12 @@ mod tests {
         assert_eq!(sanitize_filename("com1"), "_com1");
         assert_eq!(sanitize_filename("LPT9.log"), "_LPT9.log");
         assert_eq!(sanitize_filename("COM10.log"), "COM10.log");
+        assert_eq!(sanitize_filename("CONIN$"), "_CONIN$");
+        assert_eq!(sanitize_filename("conin$.txt"), "_conin$.txt");
+        assert_eq!(sanitize_filename("CONOUT$"), "_CONOUT$");
+        assert_eq!(sanitize_filename("conout$.log"), "_conout$.log");
+        assert_eq!(sanitize_filename("CLOCK$"), "_CLOCK$");
+        assert_eq!(sanitize_filename("clock$.dat"), "_clock$.dat");
 
         let long = format!("{}.tar.gz", "a".repeat(300));
         let sanitized = sanitize_filename(&long);
@@ -681,6 +696,30 @@ mod tests {
         ));
         assert!(matches!(
             safe_target_path(&dir, "CON"),
+            Err(MayaError::SecurityViolation(_))
+        ));
+        assert!(matches!(
+            safe_target_path(&dir, "CONIN$"),
+            Err(MayaError::SecurityViolation(_))
+        ));
+        assert!(matches!(
+            safe_target_path(&dir, "conin$.txt"),
+            Err(MayaError::SecurityViolation(_))
+        ));
+        assert!(matches!(
+            safe_target_path(&dir, "CONOUT$"),
+            Err(MayaError::SecurityViolation(_))
+        ));
+        assert!(matches!(
+            safe_target_path(&dir, "CLOCK$"),
+            Err(MayaError::SecurityViolation(_))
+        ));
+        assert!(matches!(
+            safe_target_path(&dir, "-output.tar.gz"),
+            Err(MayaError::SecurityViolation(_))
+        ));
+        assert!(matches!(
+            safe_target_path(&dir, "--help"),
             Err(MayaError::SecurityViolation(_))
         ));
         assert!(matches!(

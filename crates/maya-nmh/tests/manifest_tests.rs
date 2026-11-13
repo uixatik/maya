@@ -1,6 +1,6 @@
 use maya_nmh::{
     generate_chrome_manifest, generate_firefox_manifest, ChromeManifest, FirefoxManifest,
-    FIREFOX_EXTENSION_ID, HOST_NAME,
+    DEFAULT_CHROME_EXTENSION_ID, FIREFOX_EXTENSION_ID, HOST_NAME,
 };
 use std::path::Path;
 
@@ -22,6 +22,16 @@ fn test_chrome_manifest_structure() {
     let json_val: serde_json::Value = serde_json::to_value(&manifest).expect("serialize to value");
     assert_eq!(json_val["type"], "stdio");
     assert_eq!(json_val["name"], "com.maya.downloader");
+}
+
+#[test]
+fn test_chrome_manifest_default_origin() {
+    let host = Path::new("C:/Program Files/Maya/maya-nmh.exe");
+    let manifest = generate_chrome_manifest(host, &[]);
+    assert_eq!(manifest.allowed_origins, vec![DEFAULT_CHROME_EXTENSION_ID]);
+    assert!(!manifest
+        .allowed_origins
+        .contains(&"chrome-extension://*".to_string()));
 }
 
 #[test]
