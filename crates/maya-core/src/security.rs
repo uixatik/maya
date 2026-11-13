@@ -271,7 +271,7 @@ fn strip_ipv6_brackets(host: &str) -> &str {
     host.strip_prefix('[')
         .and_then(|s| s.strip_suffix(']'))
         .unwrap_or(host)
-    }
+}
 
 fn normalize_host(raw: &str) -> String {
     let trimmed = raw.trim().trim_end_matches('.');
