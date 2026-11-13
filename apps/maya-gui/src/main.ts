@@ -69,6 +69,16 @@ const btnCloseSettingsModal = document.getElementById('btn-close-settings-modal'
 const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement;
 
 // Helpers
+function escapeHtml(str: string | null | undefined): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function formatBytes(bytes: number | null | undefined): string {
   if (bytes == null || isNaN(bytes) || bytes === 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -258,16 +268,21 @@ function renderTable(): void {
         ? 'completed'
         : '';
 
+    const safeFilename = escapeHtml(job.filename);
+    const safeUrl = escapeHtml(job.url);
+    const safeStatus = escapeHtml(job.status);
+    const safeCategory = escapeHtml(job.category);
+
     tr.innerHTML = `
       <td>
         <input type="checkbox" class="job-checkbox" ${job.selected ? 'checked' : ''} />
       </td>
       <td class="col-name">
         <div class="file-title-wrap">
-          <div class="file-type-icon">${getFileIconSvg(job.category)}</div>
+          <div class="file-type-icon">${getFileIconSvg(safeCategory)}</div>
           <div class="file-info">
-            <span class="file-name" title="${job.filename}">${job.filename}</span>
-            <span class="file-url" title="${job.url}">${job.url}</span>
+            <span class="file-name" title="${safeFilename}">${safeFilename}</span>
+            <span class="file-url" title="${safeUrl}">${safeUrl}</span>
           </div>
         </div>
       </td>
@@ -286,7 +301,7 @@ function renderTable(): void {
       <td>${job.status === 'downloading' ? formatSpeed(job.speed_bps) : '-'}</td>
       <td>${job.status === 'downloading' ? formatEta(job.eta_secs) : '-'}</td>
       <td>
-        <span class="status-badge ${job.status}">${job.status}</span>
+        <span class="status-badge ${safeStatus}">${safeStatus}</span>
       </td>
       <td>
         <div class="row-actions">

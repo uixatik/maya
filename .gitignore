@@ -6,3 +6,4 @@ target/
 dist/
 test_downloads/
 node_modules/
+apps/maya-gui/src-tauri/gen/

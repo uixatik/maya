@@ -143,6 +143,14 @@ pub fn sanitize_filename(raw: &str) -> String {
         }
     }
 
+    if result.starts_with('-') {
+        result.insert(0, '_');
+        if result.len() > MAX_FILENAME_BYTES {
+            result = truncate_preserving_extension(&result, MAX_FILENAME_BYTES);
+            result = result.trim_end_matches(['.', ' ']).to_string();
+        }
+    }
+
     if result.is_empty() {
         "download".to_string()
     } else {
@@ -673,6 +681,8 @@ mod tests {
         assert_eq!(sanitize_filename("conout$.log"), "_conout$.log");
         assert_eq!(sanitize_filename("CLOCK$"), "_CLOCK$");
         assert_eq!(sanitize_filename("clock$.dat"), "_clock$.dat");
+        assert_eq!(sanitize_filename("-hyphen.tar.gz"), "_-hyphen.tar.gz");
+        assert_eq!(sanitize_filename("--help"), "_--help");
 
         let long = format!("{}.tar.gz", "a".repeat(300));
         let sanitized = sanitize_filename(&long);

@@ -242,7 +242,11 @@ pub async fn run_media_download(
                     .filename
                     .clone()
                     .unwrap_or_else(|| format!("{base_name}.mp4"));
-                let final_output = req.output_dir.join(&final_filename);
+                let final_output = if req.security.enforce_safe_paths {
+                    maya_core::security::safe_target_path(&req.output_dir, &final_filename)?
+                } else {
+                    req.output_dir.join(&final_filename)
+                };
 
                 let video_ext = video.ext.as_deref().unwrap_or("mp4");
                 let audio_ext = audio_stream.ext.as_deref().unwrap_or("m4a");

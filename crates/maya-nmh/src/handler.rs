@@ -118,16 +118,15 @@ pub(crate) fn extract_job_options(msg: &Value) -> JobOptions {
         }
     }
 
+    // Security (MAYA-SEC-08): Always sanitize filename from untrusted browser extension messages
     let filename = msg
         .get("filename")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(maya_core::security::sanitize_filename);
 
-    let output_dir = msg
-        .get("output_dir")
-        .or_else(|| msg.get("dest"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+    // Security (MAYA-SEC-09): Browser extensions must not specify arbitrary filesystem destination directories.
+    // The daemon will resolve downloads to the safe user default download directory.
+    let output_dir = None;
 
     let connections = msg
         .get("connections")
@@ -313,5 +312,24 @@ mod tests {
         });
         let options_default = extract_job_options(&msg_default);
         assert_eq!(options_default.allow_private_ips, Some(false));
+    }
+
+    #[test]
+    fn test_extract_job_options_sanitizes_filename_and_ignores_output_dir() {
+        let msg = json!({
+            "url": "https://example.com/file.zip",
+            "filename": "../../Windows/System32/calc.exe",
+            "output_dir": "C:\\Windows\\System32"
+        });
+        let options = extract_job_options(&msg);
+        assert_eq!(options.filename, Some("calc.exe".to_string()));
+        assert_eq!(options.output_dir, None);
+
+        let msg_hyphen = json!({
+            "url": "https://example.com/file.zip",
+            "filename": "-vf_filter.mp4"
+        });
+        let options_hyphen = extract_job_options(&msg_hyphen);
+        assert_eq!(options_hyphen.filename, Some("_-vf_filter.mp4".to_string()));
     }
 }

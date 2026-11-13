@@ -445,7 +445,12 @@ impl QueueManager {
         }
         let dest_dir = resolve_output_dir(&options);
         let initial_dest = match &options.filename {
-            Some(name) if !name.trim().is_empty() => dest_dir.join(name),
+            Some(name) if !name.trim().is_empty() => {
+                match maya_core::security::safe_target_path(&dest_dir, name) {
+                    Ok(path) => path,
+                    Err(err) => return RpcResponse::err(format!("invalid filename: {err}")),
+                }
+            }
             _ => dest_dir,
         };
 
