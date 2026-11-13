@@ -1,0 +1,23 @@
+[package]
+name = "maya-nmh"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Native Messaging Host for Maya browser extensions"
+
+[lib]
+name = "maya_nmh"
+path = "src/lib.rs"
+
+[[bin]]
+name = "maya-nmh"
+path = "src/main.rs"
+
+[dependencies]
+maya-ipc.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+byteorder = "1.5"
+thiserror.workspace = true
+dirs.workspace = true
