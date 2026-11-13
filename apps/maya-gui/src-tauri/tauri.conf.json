@@ -36,9 +36,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {
+      "../../../target/release/maya.exe": "bin/maya.exe",
+      "../../../target/release/mayad.exe": "bin/mayad.exe",
+      "../../../target/release/maya-nmh.exe": "bin/maya-nmh.exe",
+      "../../../extensions/browser-capture": "extensions/browser-capture"
+    },
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerHooks": "nsis/hooks.nsi"
       }
     }
   }

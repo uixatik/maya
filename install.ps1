@@ -11,10 +11,15 @@ param (
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\Maya\bin",
     [string]$Repo = "uixatik/maya",
     [switch]$Force,
-    [switch]$SkipManifest
+    [switch]$SkipManifest,
+    [switch]$InstallGui,
+    [switch]$SkipGui
 )
 
 $ErrorActionPreference = "Stop"
+if (-not $PSScriptRoot) {
+    $PSScriptRoot = (Get-Location).Path
+}
 
 function Write-Step {
     param ([string]$Message)
@@ -204,6 +209,38 @@ if (Test-Path $MayaBin) {
     } catch {
         Write-Warn "Could not execute $($MayaBin): $($_.Exception.Message)"
     }
+}
+
+# 7. Desktop GUI Installation Bridge
+$ShouldPrompt = (-not $SkipGui) -and (-not $InstallGui) -and [Environment]::UserInteractive
+$DoInstall = $InstallGui
+if ($ShouldPrompt) {
+    Write-Host ""
+    $Answer = Read-Host "[?] Would you like to install the Maya Desktop GUI App as well? [Y/n]"
+    if ([string]::IsNullOrWhiteSpace($Answer) -or $Answer.Trim().ToLower() -eq 'y' -or $Answer.Trim().ToLower() -eq 'yes') {
+        $DoInstall = $true
+    }
+}
+
+if ($DoInstall) {
+    Write-Step "Preparing Maya Desktop GUI installer..."
+    $SetupExeName = "Maya_0.0.1_x64-setup.exe"
+    $LocalSetup = Join-Path $PSScriptRoot "dist\$SetupExeName"
+    $LocalTargetSetup = Join-Path $PSScriptRoot "apps\maya-gui\src-tauri\target\release\bundle\nsis\$SetupExeName"
+    $InstallerPath = $null
+    if (Test-Path $LocalSetup) {
+        $InstallerPath = $LocalSetup
+    } elseif (Test-Path $LocalTargetSetup) {
+        $InstallerPath = $LocalTargetSetup
+    } else {
+        $TempSetup = Join-Path $env:TEMP $SetupExeName
+        $DownloadUrl = "https://github.com/$Repo/releases/download/$Version/$SetupExeName"
+        Write-Step "Downloading Desktop GUI setup from $DownloadUrl..."
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempSetup -UseBasicParsing
+        $InstallerPath = $TempSetup
+    }
+    Write-Success "Launching Maya Desktop GUI setup wizard..."
+    Start-Process -FilePath $InstallerPath
 }
 
 Write-Host @"

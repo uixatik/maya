@@ -31,6 +31,10 @@ pub enum Commands {
     /// Launch interactive Terminal User Interface (TUI).
     Tui(TuiArgs),
 
+    /// Launch Maya Desktop GUI or download and run installer.
+    #[command(alias = "desktop")]
+    Gui(GuiArgs),
+
     /// Manage Maya background daemon (`mayad`).
     Daemon(DaemonArgs),
 
@@ -278,6 +282,18 @@ pub struct TuiArgs {
     /// Custom IPC endpoint (Windows named pipe or Unix domain socket).
     #[arg(long = "endpoint", value_name = "ENDPOINT")]
     pub endpoint: Option<String>,
+}
+
+/// Arguments for `maya gui` (`desktop`).
+#[derive(Args, Debug, Clone, PartialEq, Eq, Default)]
+pub struct GuiArgs {
+    /// Download and run the Maya Desktop GUI installer.
+    #[arg(long, short)]
+    pub install: bool,
+
+    /// Optional action (e.g. `install`).
+    #[arg(value_name = "ACTION")]
+    pub action: Option<String>,
 }
 
 /// Arguments for `maya daemon <start|stop|status>`.
@@ -749,5 +765,53 @@ mod tests {
 
         // invalid algo
         assert!(parse_checksum(&format!("sha1:{hex64}")).is_err());
+    }
+
+    #[test]
+    fn parse_cli_gui_command() {
+        let parsed = Cli::parse_from(["maya", "gui"]);
+        match parsed.command {
+            Commands::Gui(args) => {
+                assert!(!args.install);
+                assert_eq!(args.action, None);
+            }
+            _ => panic!("expected Commands::Gui"),
+        }
+
+        let parsed_desktop = Cli::parse_from(["maya", "desktop"]);
+        match parsed_desktop.command {
+            Commands::Gui(args) => {
+                assert!(!args.install);
+                assert_eq!(args.action, None);
+            }
+            _ => panic!("expected Commands::Gui for alias desktop"),
+        }
+
+        let parsed_install_flag = Cli::parse_from(["maya", "gui", "--install"]);
+        match parsed_install_flag.command {
+            Commands::Gui(args) => {
+                assert!(args.install);
+                assert_eq!(args.action, None);
+            }
+            _ => panic!("expected Commands::Gui with --install"),
+        }
+
+        let parsed_short_flag = Cli::parse_from(["maya", "gui", "-i"]);
+        match parsed_short_flag.command {
+            Commands::Gui(args) => {
+                assert!(args.install);
+                assert_eq!(args.action, None);
+            }
+            _ => panic!("expected Commands::Gui with -i"),
+        }
+
+        let parsed_install_action = Cli::parse_from(["maya", "gui", "install"]);
+        match parsed_install_action.command {
+            Commands::Gui(args) => {
+                assert!(!args.install);
+                assert_eq!(args.action.as_deref(), Some("install"));
+            }
+            _ => panic!("expected Commands::Gui with positional action install"),
+        }
     }
 }

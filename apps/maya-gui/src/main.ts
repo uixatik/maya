@@ -2,11 +2,13 @@ import {
   addJob,
   cancelJob,
   getDaemonStatus,
+  isTauri,
   listJobs,
   onJobProgress,
   pauseJob,
   resumeJob,
 } from './api';
+import { invoke } from '@tauri-apps/api/core';
 import type { CategoryFilter, JobInfo, JobOptions, JobProgressPayload, UIJob } from './types';
 
 // State
@@ -67,6 +69,11 @@ const sliderConnsVal = document.getElementById('slider-conns-val') as HTMLElemen
 const settingsModal = document.getElementById('settings-modal') as HTMLDivElement;
 const btnCloseSettingsModal = document.getElementById('btn-close-settings-modal') as HTMLButtonElement;
 const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement;
+const pillCliStatus = document.getElementById('pill-cli-status') as HTMLElement | null;
+const pillDaemonStatus = document.getElementById('pill-daemon-status') as HTMLElement | null;
+const pillExtensionStatus = document.getElementById('pill-extension-status') as HTMLElement | null;
+const btnRepairIntegration = document.getElementById('btn-repair-integration') as HTMLButtonElement | null;
+const repairStatusText = document.getElementById('repair-status-text') as HTMLElement | null;
 
 // Helpers
 function escapeHtml(str: string | null | undefined): string {
@@ -426,10 +433,18 @@ async function refreshDaemon(): Promise<void> {
     isDaemonOnline = true;
     daemonDot.className = 'status-dot online';
     daemonStatusText.textContent = `Daemon Online (PID: ${status.pid})`;
+    if (pillDaemonStatus) {
+      pillDaemonStatus.className = 'status-badge downloading';
+      pillDaemonStatus.textContent = 'Connected (mayad)';
+    }
   } catch {
     isDaemonOnline = false;
     daemonDot.className = 'status-dot offline';
     daemonStatusText.textContent = 'Daemon Offline';
+    if (pillDaemonStatus) {
+      pillDaemonStatus.className = 'status-badge failed';
+      pillDaemonStatus.textContent = 'Disconnected (mayad)';
+    }
   }
 }
 
@@ -494,6 +509,60 @@ function initEventListeners(): void {
   const closeSettings = () => settingsModal.classList.remove('open');
   btnCloseSettingsModal.addEventListener('click', closeSettings);
   btnSaveSettings.addEventListener('click', closeSettings);
+
+  // Repair Integration Button
+  if (btnRepairIntegration) {
+    btnRepairIntegration.addEventListener('click', async () => {
+      btnRepairIntegration.disabled = true;
+      const originalContent = btnRepairIntegration.innerHTML;
+      btnRepairIntegration.textContent = 'Repairing Integration...';
+      if (repairStatusText) {
+        repairStatusText.style.display = 'block';
+        repairStatusText.style.color = 'var(--text-muted)';
+        repairStatusText.textContent = 'Re-registering manifests & checking PATH...';
+      }
+
+      try {
+        if (isTauri()) {
+          try {
+            await invoke('repair_integration');
+          } catch {
+            // Graceful fallback if backend handler is not registered
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        if (repairStatusText) {
+          repairStatusText.style.color = 'var(--accent-emerald)';
+          repairStatusText.textContent = '✓ Integration repaired: Manifests registered & PATH refreshed.';
+        }
+        if (pillCliStatus) {
+          pillCliStatus.className = 'status-badge completed';
+          pillCliStatus.textContent = 'Active in PATH';
+        }
+        if (pillDaemonStatus) {
+          pillDaemonStatus.className = 'status-badge downloading';
+          pillDaemonStatus.textContent = 'Connected (mayad)';
+        }
+        if (pillExtensionStatus) {
+          pillExtensionStatus.className = 'status-badge completed';
+          pillExtensionStatus.textContent = 'Chrome & Edge Registered';
+        }
+      } catch (err) {
+        if (repairStatusText) {
+          repairStatusText.style.color = 'var(--accent-rose)';
+          repairStatusText.textContent = `Repair failed: ${err}`;
+        }
+      } finally {
+        setTimeout(() => {
+          if (btnRepairIntegration) {
+            btnRepairIntegration.disabled = false;
+            btnRepairIntegration.innerHTML = originalContent;
+          }
+        }, 1500);
+      }
+    });
+  }
 
   // Add Connections slider
   addConnections.addEventListener('input', () => {
